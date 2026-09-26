@@ -34,17 +34,14 @@ def calculate_rsi(series, period=14):
     rs = gain / loss
     return 100 - (100 / (1 + rs))
 
-def get_filtered_usdt_pairs(exchange_obj, min_volume_usdt=10000000, limit=200):
+def get_top_pairs(exchange_obj, limit=200):
     try:
-        tickers = exchange_obj.fetch_tickers()
-        valid_pairs = []
-        for symbol, ticker in tickers.items():
-            if symbol.endswith('/USDT') and ticker.get('quoteVolume'):
-                if ticker['quoteVolume'] >= min_volume_usdt:
-                    valid_pairs.append((symbol, ticker['quoteVolume']))
-        
-        valid_pairs.sort(key=lambda x: x[1], reverse=True)
-        return [pair[0] for pair in valid_pairs[:limit]]
+        markets = exchange_obj.load_markets()
+        usdt_pairs = [
+            symbol for symbol in markets.keys() 
+            if symbol.endswith('/USDT') and markets[symbol]['active']
+        ]
+        return usdt_pairs[:limit]
     except Exception as e:
         st.error("Error fetching pairs")
         return []
@@ -56,7 +53,7 @@ if st.button("📢 Send Test Message"):
     st.success("Test Message Sent!")
 
 st.markdown("---")
-run_scanner = st.checkbox("Start Pro Scanner Loop (High Volume Pairs)")
+run_scanner = st.checkbox("Start Pro Scanner Loop (400 Coins)")
 
 if run_scanner:
     st.info("Scanner Loop Active... Filtering Market with 4H Trend & Risk-Reward.")
@@ -67,7 +64,7 @@ if run_scanner:
     
     for ex_name, ex_obj in exchanges.items():
         status_text.text("Fetching pairs from " + ex_name)
-        symbols = get_filtered_usdt_pairs(ex_obj, min_volume_usdt=10000000, limit=200)
+        symbols = get_top_pairs(ex_obj, limit=200)
         total_symbols = len(symbols)
         
         for idx, symbol in enumerate(symbols):
@@ -77,7 +74,7 @@ if run_scanner:
             
             try:
                 # 1. 4-Hour Timeframe (Trend Filter)
-                bars_4h = ex_obj.fetch_ohlcv(symbol, timeframe='4h', limit=200)
+                bars_4h = ex_obj.fetch_ohlcv(symbol, timeframe='4h', limit=100)
                 df_4h = pd.DataFrame(bars_4h, columns=['time', 'open', 'high', 'low', 'close', 'volume'])
                 df_4h['EMA_200'] = df_4h['close'].ewm(span=200, adjust=False).mean()
                 is_4h_uptrend = df_4h['close'].iloc[-1] > df_4h['EMA_200'].iloc[-1]
@@ -133,7 +130,7 @@ if run_scanner:
                                 st.metric(label=symbol + " Entry", value="$" + str(entry), delta="-PRO SHORT SETUP", delta_color="inverse")
                                 st.write("**SL:** $" + str(sl) + " | **TP1:** $" + str(tp1) + " \vert{} **TP2:** $" + str(tp2))
 
-                time.sleep(0.1)
+                time.sleep(0.05)
                 
             except Exception:
                 continue
