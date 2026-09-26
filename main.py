@@ -34,8 +34,7 @@ def calculate_rsi(series, period=14):
     rs = gain / loss
     return 100 - (100 / (1 + rs))
 
-def get_filtered_usdt_pairs(exchange_obj, min_volume_usdt=10_000_000, limit=200):
-    """ High volume ($10M+) active pairs fetch karta hai """
+def get_filtered_usdt_pairs(exchange_obj, min_volume_usdt=10000000, limit=200):
     try:
         tickers = exchange_obj.fetch_tickers()
         valid_pairs = []
@@ -44,11 +43,10 @@ def get_filtered_usdt_pairs(exchange_obj, min_volume_usdt=10_000_000, limit=200)
                 if ticker['quoteVolume'] >= min_volume_usdt:
                     valid_pairs.append((symbol, ticker['quoteVolume']))
         
-        # Sort by highest volume
         valid_pairs.sort(key=lambda x: x[1], reverse=True)
         return [pair[0] for pair in valid_pairs[:limit]]
     except Exception as e:
-        st.error(f"Error fetching pairs: {e}")
+        st.error("Error fetching pairs")
         return []
 
 # UI Controls
@@ -68,14 +66,14 @@ if run_scanner:
     signals_container = st.container()
     
     for ex_name, ex_obj in exchanges.items():
-        status_text.text(f"🔍 Fetching High Volume pairs from {ex_name}...")
-        symbols = get_filtered_usdt_pairs(ex_obj, min_volume_usdt=10_000_000, limit=200)
+        status_text.text("Fetching pairs from " + ex_name)
+        symbols = get_filtered_usdt_pairs(ex_obj, min_volume_usdt=10000000, limit=200)
         total_symbols = len(symbols)
         
         for idx, symbol in enumerate(symbols):
             percent_complete = int(((idx + 1) / total_symbols) * 100)
             progress_bar.progress(percent_complete)
-            status_text.markdown(f"⏳ **Scanning {ex_name}:** `{symbol}` ({idx+1}/{total_symbols} - **{percent_complete}%**)")
+            status_text.markdown("⏳ Scanning **" + ex_name + "**: `" + symbol + "` (" + str(idx+1) + "/" + str(total_symbols) + " - **" + str(percent_complete) + "%**)")
             
             try:
                 # 1. 4-Hour Timeframe (Trend Filter)
@@ -103,7 +101,7 @@ if run_scanner:
                 entry = round(curr['close'], 4)
                 rsi = round(curr['RSI'], 1)
                 
-                # --- HIGH PROBABILITY LONG SETUP ---
+                # LONG SETUP
                 if is_4h_uptrend and (prev['EMA_20'] < prev['EMA_50'] and curr['EMA_20'] > curr['EMA_50']) and rsi > 45 and bullish_fvg:
                     sl = round(prev2['low'], 4)
                     risk = entry - sl
@@ -111,24 +109,15 @@ if run_scanner:
                         tp1 = round(entry + (risk * 1.5), 4)
                         tp2 = round(entry + (risk * 2.5), 4)
                         
-                        msg = (
-                            f"🟢 *PRO LONG SETUP FOUND!*\n\n"
-                            f"🏛 *Exchange:* {ex_name}\n"
-                            f"📌 *Coin:* {symbol}\n"
-                            f"💵 *Entry:* ${entry}\n"
-                            f"🛑 *Stop Loss:* ${sl}\n"
-                            f"🎯 *Target 1 (1:1.5):* ${tp1}\n"
-                            f"🚀 *Target 2 (1:2.5):* ${tp2}\n"
-                            f"📊 *RSI:* {rsi} | *Trend:* 4H Bullish Alignment"
-                        )
+                        msg = "🟢 *PRO LONG SETUP FOUND!*\n\n" + "🏛 *Exchange:* " + ex_name + "\n📌 *Coin:* " + symbol + "\n💵 *Entry:* $" + str(entry) + "\n🛑 *Stop Loss:* $" + str(sl) + "\n🎯 *Target 1:* $" + str(tp1) + "\n🚀 *Target 2:* $" + str(tp2) + "\n📊 *RSI:* " + str(rsi)
                         send_telegram(msg)
                         
                         with signals_container:
-                            with st.expander(f"🟢 LONG: {symbol} ({ex_name})", expanded=True):
-                                st.metric(label=f"{symbol} Entry", value=f"${entry}", delta="PRO LONG SETUP")
-                                st.write(f"**SL:** ${sl} | **TP1:** ${tp1} \vert{} **TP2:**${tp2}")
+                            with st.expander("🟢 LONG: " + symbol + " (" + ex_name + ")", expanded=True):
+                                st.metric(label=symbol + " Entry", value="$" + str(entry), delta="PRO LONG SETUP")
+                                st.write("**SL:** $" + str(sl) + " | **TP1:** $" + str(tp1) + " \vert{} **TP2:** $" + str(tp2))
 
-                # --- HIGH PROBABILITY SHORT SETUP ---
+                # SHORT SETUP
                 elif is_4h_downtrend and (prev['EMA_20'] > prev['EMA_50'] and curr['EMA_20'] < curr['EMA_50']) and rsi < 55 and bearish_fvg:
                     sl = round(prev2['high'], 4)
                     risk = sl - entry
@@ -136,22 +125,13 @@ if run_scanner:
                         tp1 = round(entry - (risk * 1.5), 4)
                         tp2 = round(entry - (risk * 2.5), 4)
                         
-                        msg = (
-                            f"🔴 *PRO SHORT SETUP FOUND!*\n\n"
-                            f"🏛 *Exchange:* {ex_name}\n"
-                            f"📌 *Coin:* {symbol}\n"
-                            f"💵 *Entry:* ${entry}\n"
-                            f"🛑 *Stop Loss:* ${sl}\n"
-                            f"🎯 *Target 1 (1:1.5):* ${tp1}\n"
-                            f"🚀 *Target 2 (1:2.5):* ${tp2}\n"
-                            f"📊 *RSI:* {rsi} | *Trend:* 4H Bearish Alignment"
-                        )
+                        msg = "🔴 *PRO SHORT SETUP FOUND!*\n\n" + "🏛 *Exchange:* " + ex_name + "\n📌 *Coin:* " + symbol + "\n💵 *Entry:* $" + str(entry) + "\n🛑 *Stop Loss:* $" + str(sl) + "\n🎯 *Target 1:* $" + str(tp1) + "\n🚀 *Target 2:* $" + str(tp2) + "\n📊 *RSI:* " + str(rsi)
                         send_telegram(msg)
                         
                         with signals_container:
-                            with st.expander(f"🔴 SHORT: {symbol} ({ex_name})", expanded=True):
-                                st.metric(label=f"{symbol} Entry", value=f"${entry}", delta="-PRO SHORT SETUP", delta_color="inverse")
-                                st.write(f"**SL:** ${sl} | **TP1:** ${tp1} \vert{} **TP2:**${tp2}")
+                            with st.expander("🔴 SHORT: " + symbol + " (" + ex_name + ")", expanded=True):
+                                st.metric(label=symbol + " Entry", value="$" + str(entry), delta="-PRO SHORT SETUP", delta_color="inverse")
+                                st.write("**SL:** $" + str(sl) + " | **TP1:** $" + str(tp1) + " \vert{} **TP2:** $" + str(tp2))
 
                 time.sleep(0.1)
                 
