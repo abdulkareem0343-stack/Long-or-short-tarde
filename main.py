@@ -18,7 +18,7 @@ exchanges = {
 }
 
 def send_telegram(message):
-    url = f"https://api.telegram.org/bot{TELEGRAM_TOKEN}/sendMessage"
+    url = "https://api.telegram.org/bot" + TELEGRAM_TOKEN + "/sendMessage"
     payload = {"chat_id": CHAT_ID, "text": message, "parse_mode": "Markdown"}
     try:
         res = requests.post(url, json=payload)
@@ -27,13 +27,12 @@ def send_telegram(message):
         return str(e)
 
 def format_price(price):
-    """Low price coins k liye extra decimals format karega"""
     if price < 0.01:
-        return f"{price:.6f}"
+        return "{:.6f}".format(price)
     elif price < 1.0:
-        return f"{price:.4f}"
+        return "{:.4f}".format(price)
     else:
-        return f"{price:.2f}"
+        return "{:.2f}".format(price)
 
 def calculate_rsi(series, period=14):
     delta = series.diff()
@@ -105,14 +104,14 @@ if run_scanner:
                         tp1_str = format_price(tp1)
                         tp2_str = format_price(tp2)
                         
-                        msg = f"🟢 *15M SCALP LONG!*\n\n🏛 *Exchange:* {ex_name}\n📌 *Coin:* {symbol}\n💵 *Entry:* ${entry_str}\n🛑 *SL (1\%):* ${sl_str}\n🎯 *TP1:* ${tp1_str}\n🚀 *TP2:* ${tp2_str}\n📊 *RSI:* {rsi}"
+                        msg = "🟢 *15M SCALP LONG!*\n\n🏛 *Exchange:* " + ex_name + "\n📌 *Coin:* " + symbol + "\n💵 *Entry:* $" + entry_str + "\n🛑 *SL (1\%):* $" + sl_str + "\n🎯 *TP1:* $" + tp1_str + "\n🚀 *TP2:* $" + tp2_str + "\n📊 *RSI:* " + str(rsi)
                         send_telegram(msg)
                         total_signals_this_run += 1
                         
                         with signals_container:
-                            with st.expander(f"🟢 SCALP LONG: {symbol} ({ex_name})", expanded=True):
-                                st.metric(label=f"{symbol} Entry", value=f"${entry_str}", delta="SCALP LONG")
-                                st.write(f"**SL:** ${sl_str} | **TP1:** ${tp1_str} \vert{} **TP2:**${tp2_str}")
+                            with st.expander("🟢 SCALP LONG: " + symbol + " (" + ex_name + ")", expanded=True):
+                                st.metric(label=symbol + " Entry", value="$" + entry_str, delta="SCALP LONG")
+                                st.write("**SL:** $" + sl_str + " | **TP1:** $" + tp1_str + " \vert{} **TP2:** $" + str(tp2_str))
 
                     # SHORT SCALP
                     elif ema_short and rsi <= 55:
@@ -125,21 +124,21 @@ if run_scanner:
                         tp1_str = format_price(tp1)
                         tp2_str = format_price(tp2)
                         
-                        msg = f"🔴 *15M SCALP SHORT!*\n\n🏛 *Exchange:* {ex_name}\n📌 *Coin:* {symbol}\n💵 *Entry:* ${entry_str}\n🛑 *SL (1\%):* ${sl_str}\n🎯 *TP1:* ${tp1_str}\n🚀 *TP2:* ${tp2_str}\n📊 *RSI:* {rsi}"
+                        msg = "🔴 *15M SCALP SHORT!*\n\n🏛 *Exchange:* " + ex_name + "\n📌 *Coin:* " + symbol + "\n💵 *Entry:* $" + entry_str + "\n🛑 *SL (1\%):* $" + sl_str + "\n🎯 *TP1:* $" + tp1_str + "\n🚀 *TP2:* $" + tp2_str + "\n📊 *RSI:* " + str(rsi)
                         send_telegram(msg)
                         total_signals_this_run += 1
                         
                         with signals_container:
-                            with st.expander(f"🔴 SCALP SHORT: {symbol} ({ex_name})", expanded=True):
-                                st.metric(label=f"{symbol} Entry", value=f"${entry_str}", delta="-SCALP SHORT", delta_color="inverse")
-                                st.write(f"**SL:** ${sl_str} | **TP1:** ${tp1_str} \vert{} **TP2:**${tp2_str}")
+                            with st.expander("🔴 SCALP SHORT: " + symbol + " (" + ex_name + ")", expanded=True):
+                                st.metric(label=symbol + " Entry", value="$" + entry_str, delta="-SCALP SHORT", delta_color="inverse")
+                                st.write("**SL:** $" + sl_str + " | **TP1:** $" + tp1_str + " \vert{} **TP2:** $" + str(tp2_str))
 
                     time.sleep(0.02)
                     
                 except Exception:
                     continue
                 
-        status_text.success(f"✅ Scan Complete. Found {total_signals_this_run} signals. Re-scanning in 3 minutes...")
+        status_text.success("✅ Scan Complete. Found " + str(total_signals_this_run) + " signals. Re-scanning in 3 minutes...")
         progress_bar.progress(100)
         time.sleep(180)
         st.rerun()
