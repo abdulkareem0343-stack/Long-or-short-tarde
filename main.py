@@ -26,6 +26,15 @@ def send_telegram(message):
     except Exception as e:
         return str(e)
 
+def format_price(price):
+    """Low price coins k liye extra decimals format karega"""
+    if price < 0.01:
+        return f"{price:.6f}"
+    elif price < 1.0:
+        return f"{price:.4f}"
+    else:
+        return f"{price:.2f}"
+
 def calculate_rsi(series, period=14):
     delta = series.diff()
     gain = (delta.where(delta > 0, 0)).rolling(window=period).mean()
@@ -48,7 +57,7 @@ st.subheader("🤖 Bot Status & Controls")
 run_scanner = st.checkbox("Start 15M Scalping Scanner Loop")
 
 if run_scanner:
-    st.info("Scalping Active... Scanning 15M timeframe with Tight 1% Risk.")
+    st.info("Scalping Active... Scanning 15M timeframe with Precision Price Formatting.")
     
     progress_bar = st.progress(0)
     status_text = st.empty()
@@ -67,7 +76,6 @@ if run_scanner:
                 status_text.markdown("⏳ Scanning **" + ex_name + "**: `" + symbol + "` (" + str(idx+1) + "/" + str(total_symbols) + " - **" + str(percent_complete) + "%**)")
                 
                 try:
-                    # 15-Minute Execution
                     bars_15m = ex_obj.fetch_ohlcv(symbol, timeframe='15m', limit=60)
                     df = pd.DataFrame(bars_15m, columns=['time', 'open', 'high', 'low', 'close', 'volume'])
                     
@@ -81,48 +89,57 @@ if run_scanner:
                     ema_long = (prev['EMA_20'] <= prev['EMA_50']) and (curr['EMA_20'] > curr['EMA_50'])
                     ema_short = (prev['EMA_20'] >= prev['EMA_50']) and (curr['EMA_20'] < curr['EMA_50'])
                     
-                    entry = round(curr['close'], 4)
+                    entry = curr['close']
                     rsi = round(curr['RSI'], 1)
                     
-                    # 1% Strict Scalping Risk Buffer
                     tight_risk_dist = entry * 0.01  
                     
                     # LONG SCALP
                     if ema_long and rsi >= 45:
-                        sl = round(entry - tight_risk_dist, 4)
-                        tp1 = round(entry + (tight_risk_dist * 1.5), 4)
-                        tp2 = round(entry + (tight_risk_dist * 2.5), 4)
+                        sl = entry - tight_risk_dist
+                        tp1 = entry + (tight_risk_dist * 1.5)
+                        tp2 = entry + (tight_risk_dist * 2.5)
                         
-                        msg = "🟢 *15M SCALP LONG!*\n\n" + "🏛 *Exchange:* " + ex_name + "\n📌 *Coin:* " + symbol + "\n💵 *Entry:* $" + str(entry) + "\n🛑 *SL (Tight 1\%):* $" + str(sl) + "\n🎯 *TP1:* $" + str(tp1) + "\n🚀 *TP2:* $" + str(tp2) + "\n📊 *RSI:* " + str(rsi)
+                        entry_str = format_price(entry)
+                        sl_str = format_price(sl)
+                        tp1_str = format_price(tp1)
+                        tp2_str = format_price(tp2)
+                        
+                        msg = f"🟢 *15M SCALP LONG!*\n\n🏛 *Exchange:* {ex_name}\n📌 *Coin:* {symbol}\n💵 *Entry:* ${entry_str}\n🛑 *SL (1\%):* ${sl_str}\n🎯 *TP1:* ${tp1_str}\n🚀 *TP2:* ${tp2_str}\n📊 *RSI:* {rsi}"
                         send_telegram(msg)
                         total_signals_this_run += 1
                         
                         with signals_container:
-                            with st.expander("🟢 SCALP LONG: " + symbol + " (" + ex_name + ")", expanded=True):
-                                st.metric(label=symbol + " Entry", value="$" + str(entry), delta="SCALP LONG")
-                                st.write("**SL:** $" + str(sl) + " | **TP1:** $" + str(tp1) + " \vert{} **TP2:** $" + str(tp2))
+                            with st.expander(f"🟢 SCALP LONG: {symbol} ({ex_name})", expanded=True):
+                                st.metric(label=f"{symbol} Entry", value=f"${entry_str}", delta="SCALP LONG")
+                                st.write(f"**SL:** ${sl_str} | **TP1:** ${tp1_str} \vert{} **TP2:**${tp2_str}")
 
                     # SHORT SCALP
                     elif ema_short and rsi <= 55:
-                        sl = round(entry + tight_risk_dist, 4)
-                        tp1 = round(entry - (tight_risk_dist * 1.5), 4)
-                        tp2 = round(entry - (tight_risk_dist * 2.5), 4)
+                        sl = entry + tight_risk_dist
+                        tp1 = entry - (tight_risk_dist * 1.5)
+                        tp2 = entry - (tight_risk_dist * 2.5)
                         
-                        msg = "🔴 *15M SCALP SHORT!*\n\n" + "🏛 *Exchange:* " + ex_name + "\n📌 *Coin:* " + symbol + "\n💵 *Entry:* $" + str(entry) + "\n🛑 *SL (Tight 1\%):* $" + str(sl) + "\n🎯 *TP1:* $" + str(tp1) + "\n🚀 *TP2:* $" + str(tp2) + "\n📊 *RSI:* " + str(rsi)
+                        entry_str = format_price(entry)
+                        sl_str = format_price(sl)
+                        tp1_str = format_price(tp1)
+                        tp2_str = format_price(tp2)
+                        
+                        msg = f"🔴 *15M SCALP SHORT!*\n\n🏛 *Exchange:* {ex_name}\n📌 *Coin:* {symbol}\n💵 *Entry:* ${entry_str}\n🛑 *SL (1\%):* ${sl_str}\n🎯 *TP1:* ${tp1_str}\n🚀 *TP2:* ${tp2_str}\n📊 *RSI:* {rsi}"
                         send_telegram(msg)
                         total_signals_this_run += 1
                         
                         with signals_container:
-                            with st.expander("🔴 SCALP SHORT: " + symbol + " (" + ex_name + ")", expanded=True):
-                                st.metric(label=symbol + " Entry", value="$" + str(entry), delta="-SCALP SHORT", delta_color="inverse")
-                                st.write("**SL:** $" + str(sl) + " | **TP1:** $" + str(tp1) + " \vert{} **TP2:** $" + str(tp2))
+                            with st.expander(f"🔴 SCALP SHORT: {symbol} ({ex_name})", expanded=True):
+                                st.metric(label=f"{symbol} Entry", value=f"${entry_str}", delta="-SCALP SHORT", delta_color="inverse")
+                                st.write(f"**SL:** ${sl_str} | **TP1:** ${tp1_str} \vert{} **TP2:**${tp2_str}")
 
                     time.sleep(0.02)
                     
                 except Exception:
                     continue
                 
-        status_text.success("✅ Scalp Scan Complete. Found " + str(total_signals_this_run) + " signals. Re-scanning in 3 minutes...")
+        status_text.success(f"✅ Scan Complete. Found {total_signals_this_run} signals. Re-scanning in 3 minutes...")
         progress_bar.progress(100)
-        time.sleep(180) # 3-minute fast rescanning loop
+        time.sleep(180)
         st.rerun()
