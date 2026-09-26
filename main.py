@@ -5,14 +5,13 @@ import ccxt
 import pandas as pd
 
 # --- APP CONFIG ---
-st.set_page_config(page_title="Crypto Signal Scanner", page_icon="🎯", layout="centered")
-st.title("🎯 Live Crypto Signal Scanner (OKX & KuCoin)")
+st.set_page_config(page_title="15M Scalping Scanner", page_icon="🎯", layout="centered")
+st.title("🎯 Fast 15M Scalper Scanner (OKX & KuCoin)")
 
 # --- CREDENTIALS ---
 TELEGRAM_TOKEN = "8812805030:AAEA-Un5dpDtjDxrO89Nz06u7cVNsXLgzYg"
 CHAT_ID = "@singnalsbyAK"
 
-# --- EXCHANGES SETUP ---
 exchanges = {
     'OKX': ccxt.okx({'enableRateLimit': True}),
     'KuCoin': ccxt.kucoin({'enableRateLimit': True})
@@ -43,20 +42,13 @@ def get_top_pairs(exchange_obj, limit=200):
         ]
         return usdt_pairs[:limit]
     except Exception as e:
-        st.error("Error fetching pairs")
         return []
 
-# UI Controls
 st.subheader("🤖 Bot Status & Controls")
-if st.button("📢 Send Test Message"):
-    res = send_telegram("🤖 *Crypto Scanner Connected Successfully!*")
-    st.success("Test Message Sent!")
-
-st.markdown("---")
-run_scanner = st.checkbox("Start Continuous Scanner Loop")
+run_scanner = st.checkbox("Start 15M Scalping Scanner Loop")
 
 if run_scanner:
-    st.info("Scanner Loop Active... Running background scans every 10 mins.")
+    st.info("Scalping Active... Scanning 15M timeframe with Tight 1% Risk.")
     
     progress_bar = st.progress(0)
     status_text = st.empty()
@@ -66,7 +58,6 @@ if run_scanner:
         total_signals_this_run = 0
         
         for ex_name, ex_obj in exchanges.items():
-            status_text.text("Fetching pairs from " + ex_name)
             symbols = get_top_pairs(ex_obj, limit=200)
             total_symbols = len(symbols)
             
@@ -76,9 +67,9 @@ if run_scanner:
                 status_text.markdown("⏳ Scanning **" + ex_name + "**: `" + symbol + "` (" + str(idx+1) + "/" + str(total_symbols) + " - **" + str(percent_complete) + "%**)")
                 
                 try:
-                    # 1-Hour Timeframe Execution
-                    bars_1h = ex_obj.fetch_ohlcv(symbol, timeframe='1h', limit=60)
-                    df = pd.DataFrame(bars_1h, columns=['time', 'open', 'high', 'low', 'close', 'volume'])
+                    # 15-Minute Execution
+                    bars_15m = ex_obj.fetch_ohlcv(symbol, timeframe='15m', limit=60)
+                    df = pd.DataFrame(bars_15m, columns=['time', 'open', 'high', 'low', 'close', 'volume'])
                     
                     df['EMA_20'] = df['close'].ewm(span=20, adjust=False).mean()
                     df['EMA_50'] = df['close'].ewm(span=50, adjust=False).mean()
@@ -86,59 +77,52 @@ if run_scanner:
                     
                     curr = df.iloc[-1]
                     prev = df.iloc[-2]
-                    prev2 = df.iloc[-3]
                     
-                    # Core Trigger Conditions
                     ema_long = (prev['EMA_20'] <= prev['EMA_50']) and (curr['EMA_20'] > curr['EMA_50'])
                     ema_short = (prev['EMA_20'] >= prev['EMA_50']) and (curr['EMA_20'] < curr['EMA_50'])
-                    
-                    bullish_fvg = curr['low'] > prev2['high']
-                    bearish_fvg = curr['high'] < prev2['low']
                     
                     entry = round(curr['close'], 4)
                     rsi = round(curr['RSI'], 1)
                     
-                    # FLEXIBLE LONG SETUP (EMA Cross OR FVG + RSI Support)
-                    if (ema_long or bullish_fvg) and rsi >= 40:
-                        sl = round(prev2['low'], 4)
-                        risk = entry - sl
-                        if risk > 0:
-                            tp1 = round(entry + (risk * 1.5), 4)
-                            tp2 = round(entry + (risk * 2.5), 4)
-                            
-                            msg = "🟢 *LONG SETUP FOUND!*\n\n" + "🏛 *Exchange:* " + ex_name + "\n📌 *Coin:* " + symbol + "\n💵 *Entry:* $" + str(entry) + "\n🛑 *Stop Loss:* $" + str(sl) + "\n🎯 *Target 1:* $" + str(tp1) + "\n🚀 *Target 2:* $" + str(tp2) + "\n📊 *RSI:* " + str(rsi)
-                            send_telegram(msg)
-                            total_signals_this_run += 1
-                            
-                            with signals_container:
-                                with st.expander("🟢 LONG: " + symbol + " (" + ex_name + ")", expanded=True):
-                                    st.metric(label=symbol + " Entry", value="$" + str(entry), delta="LONG SETUP")
-                                    st.write("**SL:** $" + str(sl) + " | **TP1:** $" + str(tp1) + " \vert{} **TP2:** $" + str(tp2))
+                    # 1% Strict Scalping Risk Buffer
+                    tight_risk_dist = entry * 0.01  
+                    
+                    # LONG SCALP
+                    if ema_long and rsi >= 45:
+                        sl = round(entry - tight_risk_dist, 4)
+                        tp1 = round(entry + (tight_risk_dist * 1.5), 4)
+                        tp2 = round(entry + (tight_risk_dist * 2.5), 4)
+                        
+                        msg = "🟢 *15M SCALP LONG!*\n\n" + "🏛 *Exchange:* " + ex_name + "\n📌 *Coin:* " + symbol + "\n💵 *Entry:* $" + str(entry) + "\n🛑 *SL (Tight 1\%):* $" + str(sl) + "\n🎯 *TP1:* $" + str(tp1) + "\n🚀 *TP2:* $" + str(tp2) + "\n📊 *RSI:* " + str(rsi)
+                        send_telegram(msg)
+                        total_signals_this_run += 1
+                        
+                        with signals_container:
+                            with st.expander("🟢 SCALP LONG: " + symbol + " (" + ex_name + ")", expanded=True):
+                                st.metric(label=symbol + " Entry", value="$" + str(entry), delta="SCALP LONG")
+                                st.write("**SL:** $" + str(sl) + " | **TP1:** $" + str(tp1) + " \vert{} **TP2:** $" + str(tp2))
 
-                    # FLEXIBLE SHORT SETUP (EMA Cross OR FVG + RSI Resistance)
-                    elif (ema_short or bearish_fvg) and rsi <= 60:
-                        sl = round(prev2['high'], 4)
-                        risk = sl - entry
-                        if risk > 0:
-                            tp1 = round(entry - (risk * 1.5), 4)
-                            tp2 = round(entry - (risk * 2.5), 4)
-                            
-                            msg = "🔴 *SHORT SETUP FOUND!*\n\n" + "🏛 *Exchange:* " + ex_name + "\n📌 *Coin:* " + symbol + "\n💵 *Entry:* $" + str(entry) + "\n🛑 *Stop Loss:* $" + str(sl) + "\n🎯 *Target 1:* $" + str(tp1) + "\n🚀 *Target 2:* $" + str(tp2) + "\n📊 *RSI:* " + str(rsi)
-                            send_telegram(msg)
-                            total_signals_this_run += 1
-                            
-                            with signals_container:
-                                with st.expander("🔴 SHORT: " + symbol + " (" + ex_name + ")", expanded=True):
-                                    st.metric(label=symbol + " Entry", value="$" + str(entry), delta="-SHORT SETUP", delta_color="inverse")
-                                    st.write("**SL:** $" + str(sl) + " | **TP1:** $" + str(tp1) + " \vert{} **TP2:** $" + str(tp2))
+                    # SHORT SCALP
+                    elif ema_short and rsi <= 55:
+                        sl = round(entry + tight_risk_dist, 4)
+                        tp1 = round(entry - (tight_risk_dist * 1.5), 4)
+                        tp2 = round(entry - (tight_risk_dist * 2.5), 4)
+                        
+                        msg = "🔴 *15M SCALP SHORT!*\n\n" + "🏛 *Exchange:* " + ex_name + "\n📌 *Coin:* " + symbol + "\n💵 *Entry:* $" + str(entry) + "\n🛑 *SL (Tight 1\%):* $" + str(sl) + "\n🎯 *TP1:* $" + str(tp1) + "\n🚀 *TP2:* $" + str(tp2) + "\n📊 *RSI:* " + str(rsi)
+                        send_telegram(msg)
+                        total_signals_this_run += 1
+                        
+                        with signals_container:
+                            with st.expander("🔴 SCALP SHORT: " + symbol + " (" + ex_name + ")", expanded=True):
+                                st.metric(label=symbol + " Entry", value="$" + str(entry), delta="-SCALP SHORT", delta_color="inverse")
+                                st.write("**SL:** $" + str(sl) + " | **TP1:** $" + str(tp1) + " \vert{} **TP2:** $" + str(tp2))
 
                     time.sleep(0.02)
                     
                 except Exception:
                     continue
                 
-        status_text.success("✅ Cycle Complete. Found " + str(total_signals_this_run) + " setups. Waiting 10 minutes for next cycle...")
+        status_text.success("✅ Scalp Scan Complete. Found " + str(total_signals_this_run) + " signals. Re-scanning in 3 minutes...")
         progress_bar.progress(100)
-        time.sleep(600)
+        time.sleep(180) # 3-minute fast rescanning loop
         st.rerun()
-      
